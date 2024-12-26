@@ -43,11 +43,9 @@ class ImageNetDataset(Dataset):
             image = self.transform(image)
 
         if self.mode == "train":
-            # Return two augmentations of the same image for self-supervised training
             aug1 = transformAug(image)
             aug2 = transformAug(image)
             return aug1, aug2
 
         elif self.mode == "eval":
-            # Return a single normalized image with its label for evaluation
             return image, label

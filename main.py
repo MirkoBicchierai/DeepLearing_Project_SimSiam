@@ -8,9 +8,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from Model import NetModel
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score
-
 
 def criterion(p,z):
     return F.cosine_similarity(p, z, dim=-1).mean()
