@@ -39,3 +39,17 @@ class NetModel(nn.Module):
             return p1, p2, z1.detach(), z2.detach()
         else:
             return p1, p2, z1, z2
+
+
+class LinearEvaluationModel(nn.Module):
+    def __init__(self, input_dim, output_dim, backbone):
+        super(LinearEvaluationModel, self).__init__()
+        self.backbone = backbone
+        for param in backbone.parameters():
+            param.requires_grad = False
+        self.linear = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x):
+        _, _, z1, _ = self.backbone(x,x)
+        x = self.linear(z1)
+        return x

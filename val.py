@@ -1,69 +1,38 @@
 import torch
+from torch import optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
+from tqdm import tqdm
+
 from DataLoader import ImageNetDataset
+from Model import LinearEvaluationModel
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+def accuracy(model, data_loader, device):
+    correct = 0
+    total = 0
+    model.eval()  # Put the model in evaluation mode
+    with torch.no_grad():  # Disable gradient computation for evaluation
+        for x, y in data_loader:
+            x = x.to(device)
+            y = y.to(device)
 
-def accuracy(output, target, topk=(1,)):
-    """Computes the accuracy over the k top predictions for the specified values of k"""
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
+            y_pred = model(x)
+            predicted = torch.argmax(y_pred, dim=1)  # Get the predicted class
+            total += y.size(0)
+            correct += (predicted == y).sum().item()
 
-        # Get the top-k predictions
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()  # Transpose the predictions tensor
-        correct = pred.eq(target.view(1, -1).expand_as(pred))  # Check if predictions match the targets
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)  # Count correct predictions
-            res.append(correct_k.mul_(100.0 / batch_size))  # Compute accuracy
-        return res
-
-
-def validate(val_loader, model):
-    model.eval()
-
-    top1_acc = 0.0
-    top5_acc = 0.0
-    total_samples = 0
-
-    with torch.no_grad():
-        for images, target in val_loader:
-            images = images.to(device)
-            target = target.to(device)
-
-            # Forward pass
-            output = model.singleImage(images)  # Use the model's forward method, not `singleImage`
-
-            # Compute top-1 and top-5 accuracy
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
-
-            # Accumulate accuracy
-            top1_acc += acc1[0] * images.size(0)
-            top5_acc += acc5[0] * images.size(0)
-            total_samples += images.size(0)
-
-    # Compute average accuracy
-    top1_acc /= total_samples
-    top5_acc /= total_samples
-
-    return top1_acc, top5_acc
-
+    return correct / total
 
 if "__main__" == __name__:
+
     train_dir = 'Dataset/SPLITTED/Train'
     val_dir = 'Dataset/SPLITTED/Test'
 
     batch_size = 48
-    base_lr = 0.05
-    lr = (base_lr * batch_size) / 256
-    momentum = 0.9
-    weight_decay = 0.0001
-    epochs = 20
+    lr = 0.001
+    epochs = 10
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -78,12 +47,32 @@ if "__main__" == __name__:
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-    model = torch.load("Models/model.pth")
+    model = torch.load("Models/model2.pth")
+    model.stop_grad = True
     model.to(device)
     model.eval()
 
-    # Evaluate the model on the validation set
-    acc1, acc5 = validate(val_loader, model)
+    LModel = LinearEvaluationModel(2048, val_dataset.num_classes, model)
+    LModel.to(device)
+    epochs = 10
+    num_batches = len(train_loader)
+    optimizer = optim.Adam(LModel.linear.parameters(), lr=lr)
 
-    print(f"Top-1 Accuracy: {acc1:.2f}%")
-    print(f"Top-5 Accuracy: {acc5:.2f}%")
+    for epoch in tqdm(range(epochs)):
+        running_loss = 0
+        LModel.train()
+        for x, y in train_loader:
+            x = x.to(device)
+            y = y.to(device)
+            y_pred = LModel(x)
+            loss = torch.nn.CrossEntropyLoss()(y_pred, y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+
+        epoch_loss = running_loss / num_batches
+        print(f"Epoch: {epoch}, Loss: {epoch_loss}")
+
+        acc = accuracy(LModel, val_loader, device)
+        print(f"Epoch: {epoch}, Accuracy: {acc}")

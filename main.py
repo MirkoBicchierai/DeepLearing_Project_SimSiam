@@ -30,7 +30,7 @@ if __name__ == "__main__":
     lr = (base_lr*batch_size)/256
     momentum = 0.9
     weight_decay = 0.0001
-    epochs = 20
+    epochs = 100
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -77,4 +77,4 @@ if __name__ == "__main__":
         print(f"Epoch: {epoch}, Loss: {epoch_loss}")
         exp.log_metric('loss', epoch_loss, step=epoch)
 
-    torch.save(f, "Models/model2.pth")
+    torch.save(f, "Models/model100.pth")
