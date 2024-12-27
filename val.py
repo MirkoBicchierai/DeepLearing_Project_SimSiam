@@ -8,23 +8,37 @@ from Model import LinearEvaluationModel
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 def accuracy(model, data_loader, device):
-    correct = 0
+    top1_correct = 0
+    top5_correct = 0
     total = 0
-    model.eval()  # Put the model in evaluation mode
-    with torch.no_grad():  # Disable gradient computation for evaluation
+    model.eval()
+    with torch.no_grad():
         for x, y in data_loader:
             x = x.to(device)
             y = y.to(device)
 
             y_pred = model(x)
-            predicted = torch.argmax(y_pred, dim=1)  # Get the predicted class
             total += y.size(0)
-            correct += (predicted == y).sum().item()
 
-    return correct / total
+            # Top-1 accuracy
+            top1_predicted = torch.argmax(y_pred, dim=1)
+            top1_correct += (top1_predicted == y).sum().item()
+
+            # Top-5 accuracy
+            _, top5_predicted = torch.topk(y_pred, 5, dim=1)
+            top5_correct += sum([y[i] in top5_predicted[i] for i in range(len(y))])
+
+    top1_accuracy = top1_correct / total
+    top5_accuracy = top5_correct / total
+
+    return top1_accuracy, top5_accuracy
+
 
 if "__main__" == __name__:
+
+    dataset = "MiniImageNet"
 
     train_dir = 'Dataset/SPLITTED/Train'
     val_dir = 'Dataset/SPLITTED/Test'
@@ -46,7 +60,7 @@ if "__main__" == __name__:
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-    model = torch.load("Models/model2.pth")
+    model = torch.load("Models/SimSiam/model100.pth")
     model.stop_grad = True
     model.to(device)
     model.eval()
@@ -71,7 +85,10 @@ if "__main__" == __name__:
             running_loss += loss.item()
 
         epoch_loss = running_loss / num_batches
-        print(f"Epoch: {epoch}, Loss: {epoch_loss}")
+        print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}")
 
-        acc = accuracy(LModel, val_loader, device)
-        print(f"Epoch: {epoch}, Accuracy: {acc}")
+        acc_1, acc_5 = accuracy(LModel, val_loader, device)
+        print(f"Epoch: {epoch + 1}, Accuracy top1: {acc_1}, Accuracy top5: {acc_5}")
+
+    torch.save(LModel, "Models/LinearEval/model_" + dataset + "_" + str(epochs) + "_" + str(batch_size) + "_" + str(
+        lr) + ".pth")

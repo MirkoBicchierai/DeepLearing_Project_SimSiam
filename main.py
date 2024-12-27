@@ -9,7 +9,8 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from Model import NetModel
 
-def criterion(p,z):
+
+def criterion(p, z):
     return F.cosine_similarity(p, z, dim=-1).mean()
 
 
@@ -24,7 +25,7 @@ if __name__ == "__main__":
 
     batch_size = 48
     base_lr = 0.05
-    lr = (base_lr*batch_size)/256
+    lr = (base_lr * batch_size) / 256  # (base_lr*batch_size)/256
     momentum = 0.9
     weight_decay = 0.0001
     epochs = 100
@@ -50,11 +51,11 @@ if __name__ == "__main__":
     parameters = {'batch_size': batch_size, 'learning_rate': lr, 'momentum': momentum, 'weight_decay': weight_decay}
     exp.log_parameters(parameters)
 
-    f = NetModel(2048,512, stop_grad=True)
+    f = NetModel(2048, 512, stop_grad=True)
     f.to(device)
 
     optimizer = optim.SGD(f.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
-    scheduler = CosineAnnealingLR(optimizer,T_max=epochs,eta_min=0)
+    scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=0)
     num_batches = len(train_loader)
 
     for epoch in tqdm(range(epochs)):
@@ -71,7 +72,7 @@ if __name__ == "__main__":
 
         scheduler.step()
         epoch_loss = running_loss / num_batches
-        print(f"Epoch: {epoch}, Loss: {epoch_loss}")
+        print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}")
         exp.log_metric('loss', epoch_loss, step=epoch)
 
-    torch.save(f, "Models/model100.pth")
+    torch.save(f, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_" + str(lr) + ".pth")
