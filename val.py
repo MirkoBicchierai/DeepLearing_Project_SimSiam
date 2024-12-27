@@ -5,6 +5,7 @@ from torchvision.transforms import transforms
 from tqdm import tqdm
 from DataLoader import ImageNetDataset
 from Model import LinearEvaluationModel
+from common import transform
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -46,13 +47,6 @@ if "__main__" == __name__:
     batch_size = 48
     lr = 0.001
     epochs = 10
-
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],  # Normalize with ImageNet mean
-                             std=[0.229, 0.224, 0.225])  # Normalize with ImageNet std
-    ])
 
     train_dataset = ImageNetDataset(root_dir=train_dir, mode="eval", transform=transform)
     val_dataset = ImageNetDataset(root_dir=val_dir, mode="eval", transform=transform)

@@ -17,7 +17,7 @@ class NetModel(nn.Module):
                                         nn.BatchNorm1d(prev_dim),
                                         nn.ReLU(inplace=True),
                                         self.encoder.fc,
-                                        nn.BatchNorm1d(dim))
+                                        nn.BatchNorm1d(dim, affine=False))
         self.encoder.fc[6].bias.requires_grad = False
 
         # build a 2-layer predictor
@@ -41,6 +41,11 @@ class NetModel(nn.Module):
             return p1, p2, z1, z2
 
 
+    def f(self, x):
+        z1 = self.encoder(x)
+        return z1
+
+
 class LinearEvaluationModel(nn.Module):
     def __init__(self, input_dim, output_dim, backbone):
         super(LinearEvaluationModel, self).__init__()
@@ -50,6 +55,6 @@ class LinearEvaluationModel(nn.Module):
         self.linear = nn.Linear(input_dim, output_dim)
 
     def forward(self, x):
-        _, _, z1, _ = self.backbone(x,x)
+        z1 = self.backbone.f(x)
         x = self.linear(z1)
         return x
