@@ -6,7 +6,7 @@ class NetModel(nn.Module):
     def __init__(self, dim, predictor_dim, stop_grad):
         super(NetModel, self).__init__()
         self.stop_grad = stop_grad
-        self.encoder = models.resnet18(num_classes=dim, zero_init_residual=True, pretrained=False)
+        self.encoder = models.resnet18(num_classes=dim, zero_init_residual=True, weights=None)
 
         # build a 3-layer projector
         prev_dim = self.encoder.fc.weight.shape[1]

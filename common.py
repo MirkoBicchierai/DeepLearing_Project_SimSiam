@@ -8,6 +8,7 @@ transform = transforms.Compose([
 ])
 
 transformAug = transforms.Compose([
+    transforms.ToTensor(),
     transforms.RandomResizedCrop(size=224, scale=(0.2, 1.0)),  # Scale range [0.2, 1.0]
     transforms.RandomHorizontalFlip(),  # Horizontal flip with 50% probability
     transforms.RandomApply([  # Apply color jitter with a probability of 0.8
@@ -18,3 +19,4 @@ transformAug = transforms.Compose([
         transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))
     ], p=0.5)
 ])
+

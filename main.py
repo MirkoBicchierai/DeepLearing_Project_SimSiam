@@ -51,10 +51,10 @@ if __name__ == "__main__":
     train_dataset_evMode = ImageNetDataset(root_dir=train_dir, mode="eval", transform=transform)
     val_dataset = ImageNetDataset(root_dir=val_dir, mode="eval", transform=transform)
 
-    train_loader_ev = DataLoader(train_dataset_evMode, batch_size=batch_size, shuffle=True, num_workers=8,
+    train_loader_ev = DataLoader(train_dataset_evMode, batch_size=batch_size, shuffle=True, num_workers=12,
                                  pin_memory=True)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=12, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=12, pin_memory=True)
 
     exp = comet_ml.Experiment(
         project_name="Deep Learning Project",
@@ -69,7 +69,10 @@ if __name__ == "__main__":
 
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=0)
+
     num_batches = len(train_loader)
+    epsilon = 1e-12 # Small value to avoid log(0) in KNN
+    temperature = 0.1 # KNN temperature
 
     for epoch in tqdm(range(epochs)):
         model.train()
@@ -95,14 +98,12 @@ if __name__ == "__main__":
         scheduler.step()
 
         epoch_loss = running_loss / num_batches
-        print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}")
         exp.log_metric('loss', epoch_loss, step=epoch)
 
         # Std per channel and Average
         all_normalized_outputs = torch.cat(all_normalized_outputs, dim=0)
         std_per_channel = all_normalized_outputs.std(dim=0)  # Std per channel
         avg_epoch_std = std_per_channel.mean().item()  # Average
-        print(f"Epoch: {epoch + 1}, avg_std: {avg_epoch_std}")
         exp.log_metric('avg_std', avg_epoch_std, step=epoch)
 
         model.eval()
@@ -110,11 +111,13 @@ if __name__ == "__main__":
             train_features, train_labels = extract_features(model, train_loader_ev, device)
             val_features, val_labels = extract_features(model, val_loader, device)
 
-            knn = KNeighborsClassifier(n_neighbors=5)
+            knn = KNeighborsClassifier(n_neighbors=200)
             knn.fit(train_features, train_labels)
 
             val_probs = knn.predict_proba(val_features)
-            val_probs_tensor = torch.tensor(val_probs)
+            scaled_probs = np.exp(np.log(val_probs + epsilon) / temperature)
+            scaled_probs /= scaled_probs.sum(axis=1, keepdims=True)
+            val_probs_tensor = torch.tensor(scaled_probs)
 
             # Top-1 accuracy
             _, top1_pred = torch.topk(val_probs_tensor, k=1, dim=1)
@@ -125,8 +128,10 @@ if __name__ == "__main__":
             top5_accuracy = sum(any(pred == label for pred in top5_pred[i])
                                 for i, label in enumerate(val_labels)) / len(val_labels)
 
-            print(f"Epoch: {epoch + 1}, Top-1 Accuracy: {top1_accuracy:.4f}, Top-5 Accuracy: {top5_accuracy:.4f}")
             exp.log_metric('val_top1_accuracy', top1_accuracy, step=epoch)
             exp.log_metric('val_top5_accuracy', top5_accuracy, step=epoch)
+
+            print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}, avg_std: {avg_epoch_std}, "
+                  f"Top-1 Accuracy: {top1_accuracy:.4f}, Top-5 Accuracy: {top5_accuracy:.4f}")
 
     torch.save(model, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_" + str(lr) + ".pth")

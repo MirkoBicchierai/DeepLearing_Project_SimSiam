@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 
 class ImageNetDataset(Dataset):
-    def __init__(self, root_dir,mode, transform=None):
+    def __init__(self, root_dir,mode, transform):
         self.root_dir = root_dir
         self.transform = transform
         self.samples = []
@@ -21,12 +21,14 @@ class ImageNetDataset(Dataset):
                 self.samples.append((img_path, class_idx))
                 self.targets.append(class_idx)
 
+
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
         img_path, label = self.samples[idx]
         image = Image.open(img_path).convert("RGB")
+
 
         if self.mode == "train":
             aug1 = self.transform(image)
