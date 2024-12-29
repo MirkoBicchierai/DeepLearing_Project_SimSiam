@@ -1,7 +1,6 @@
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
-from torchvision.transforms import transforms
 from tqdm import tqdm
 from DataLoader import ImageNetDataset
 from Model import LinearEvaluationModel

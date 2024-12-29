@@ -1,34 +1,28 @@
+import math
 import comet_ml
-import numpy as np
 import torch
-from sklearn.neighbors import KNeighborsClassifier
 from torch.utils.data import DataLoader
 from DataLoader import ImageNetDataset
 from tqdm import tqdm
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingLR
 from Model import NetModel
-from common import transformAug, transform
+from common import transformAug, transform, knn_predict
+
+
+def adjust_learning_rate(opt, init_lr, actual_epoch, tot_epochs):
+    cur_lr = init_lr * 0.5 * (1. + math.cos(math.pi * actual_epoch / tot_epochs))
+    for param_group in opt.param_groups:
+        if 'fixed' in param_group and param_group['fixed']:
+            param_group['fixed'] = init_lr
+        else:
+            param_group['fixed'] = cur_lr
 
 
 def criterion(p, z):
+    p = F.normalize(p, dim=-1)
+    z = F.normalize(z, dim=-1)
     return F.cosine_similarity(p, z, dim=-1).mean()
-
-
-def extract_features(m, dataloader, device):
-    m.eval()
-    features = []
-    labels = []
-    with torch.inference_mode():
-        for images, targets in dataloader:
-            images = images.to(device)
-            out = m.f(images)
-            features.append(out.cpu().numpy())
-            labels.append(targets.cpu().numpy())
-    features = np.concatenate(features, axis=0)
-    labels = np.concatenate(labels, axis=0)
-    return features, labels
 
 
 if __name__ == "__main__":
@@ -45,15 +39,20 @@ if __name__ == "__main__":
     lr = (base_lr*batch_size)/256
     momentum = 0.9
     weight_decay = 0.0001
-    epochs = 100
+    epochs = 200
+
+    knn_k = 200
+    knn_t = 0.1
 
     train_dataset = ImageNetDataset(root_dir=train_dir, mode="train", transform=transformAug)
-    train_dataset_evMode = ImageNetDataset(root_dir=train_dir, mode="eval", transform=transform)
-    val_dataset = ImageNetDataset(root_dir=val_dir, mode="eval", transform=transform)
-
-    train_loader_ev = DataLoader(train_dataset_evMode, batch_size=batch_size, shuffle=True, num_workers=12,
-                                 pin_memory=True)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=12, pin_memory=True)
+
+
+    train_dataset_evMode = ImageNetDataset(root_dir=train_dir, mode="eval", transform=transform)
+    train_loader_ev = DataLoader(train_dataset_evMode, batch_size=batch_size, shuffle=False, num_workers=12,
+                                 pin_memory=True)
+
+    val_dataset = ImageNetDataset(root_dir=val_dir, mode="eval", transform=transform)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=12, pin_memory=True)
 
     exp = comet_ml.Experiment(
@@ -64,17 +63,18 @@ if __name__ == "__main__":
     parameters = {'batch_size': batch_size, 'learning_rate': lr, 'momentum': momentum, 'weight_decay': weight_decay}
     exp.log_parameters(parameters)
 
-    model = NetModel(2048, 512, stop_grad=True)
+    model = NetModel(512, 128, stop_grad=True)
     model.to(device)
 
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
-    scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=0)
+    optim_params = [{'params': model.encoder.parameters(), 'fixed': False},
+                   {'params': model.predictor.parameters(), 'fixed': True}]
+
+    optimizer = optim.SGD(optim_params, lr=lr, momentum=momentum, weight_decay=weight_decay)
 
     num_batches = len(train_loader)
-    epsilon = 1e-12 # Small value to avoid log(0) in KNN
-    temperature = 0.1 # KNN temperature
 
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(epochs), desc="Training"):
+        adjust_learning_rate(optimizer, lr, epoch, epochs)
         model.train()
         running_loss = 0
         all_normalized_outputs = []
@@ -95,8 +95,6 @@ if __name__ == "__main__":
                 z2_norm = z2 / z2.norm(dim=1, keepdim=True)
                 all_normalized_outputs.append(z2_norm)
 
-        scheduler.step()
-
         epoch_loss = running_loss / num_batches
         exp.log_metric('loss', epoch_loss, step=epoch)
 
@@ -106,32 +104,46 @@ if __name__ == "__main__":
         avg_epoch_std = std_per_channel.mean().item()  # Average
         exp.log_metric('avg_std', avg_epoch_std, step=epoch)
 
-        model.eval()
-        with torch.no_grad():
-            train_features, train_labels = extract_features(model, train_loader_ev, device)
-            val_features, val_labels = extract_features(model, val_loader, device)
+        print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}, avg_std: {avg_epoch_std}")
 
-            knn = KNeighborsClassifier(n_neighbors=200)
-            knn.fit(train_features, train_labels)
+        # Validation
+        if epoch % 2 == 0 :
+            model.eval()
+            with torch.no_grad():
 
-            val_probs = knn.predict_proba(val_features)
-            scaled_probs = np.exp(np.log(val_probs + epsilon) / temperature)
-            scaled_probs /= scaled_probs.sum(axis=1, keepdims=True)
-            val_probs_tensor = torch.tensor(scaled_probs)
+                top1_accuracy, top5_accuracy, total_num, feature_bank = 0, 0,0, []
+                classes = train_loader_ev.dataset.num_classes
 
-            # Top-1 accuracy
-            _, top1_pred = torch.topk(val_probs_tensor, k=1, dim=1)
-            top1_accuracy = sum(val_labels == top1_pred.squeeze()) / len(val_labels)
+                with torch.inference_mode():
+                    for data, target in tqdm(train_loader_ev, desc="Feature extraction [Training Set]"):
+                        feature = model.f(data.to(device))
+                        feature = F.normalize(feature, dim=1)
+                        feature_bank.append(feature)
 
-            # Top-5 accuracy
-            _, top5_pred = torch.topk(val_probs_tensor, k=5, dim=1)
-            top5_accuracy = sum(any(pred == label for pred in top5_pred[i])
-                                for i, label in enumerate(val_labels)) / len(val_labels)
+                    feature_bank = torch.cat(feature_bank, dim=0).t().contiguous()
+                    # [N]
+                    feature_labels = torch.tensor(
+                        train_loader_ev.dataset.targets, device=feature_bank.device
+                    )
 
-            exp.log_metric('val_top1_accuracy', top1_accuracy, step=epoch)
-            exp.log_metric('val_top5_accuracy', top5_accuracy, step=epoch)
+                    for data, target in tqdm(val_loader, desc="Feature extraction [Validation Set]"):
+                        data, target = data.to(device), target.to(device)
+                        feature = model.f(data)
+                        feature = F.normalize(feature, dim=1)
+                        pred_labels = knn_predict(feature, feature_bank, feature_labels, classes, knn_k=knn_k, knn_t=knn_t)
+                        total_num += data.size(0)
+                        top1_accuracy += (pred_labels[:, 0] == target).float().sum().item()
+                        top5_accuracy += sum([target[i].item() in pred_labels[i, :5].tolist() for i in range(target.size(0))])
 
-            print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}, avg_std: {avg_epoch_std}, "
-                  f"Top-1 Accuracy: {top1_accuracy:.4f}, Top-5 Accuracy: {top5_accuracy:.4f}")
+                top1_accuracy = top1_accuracy / total_num
+                top5_accuracy = top5_accuracy / total_num
 
-    torch.save(model, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_" + str(lr) + ".pth")
+                print(f"Top-1 Knn Accuracy: {top1_accuracy:.4f}, Top-5 Knn Accuracy: {top5_accuracy:.4f}")
+
+                exp.log_metric('val_top1_accuracy', top1_accuracy, step=epoch)
+                exp.log_metric('val_top5_accuracy', top5_accuracy, step=epoch)
+
+        if epoch % 50 == 0:
+                torch.save(model, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_Checkpoint_"+str(epoch)+".pth")
+
+    torch.save(model, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + ".pth")
