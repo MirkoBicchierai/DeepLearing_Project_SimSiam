@@ -1,5 +1,6 @@
 import torch
 from torchvision.transforms import transforms
+import torch.nn.functional as F
 
 MiniImageNet_mean = [0.4727902,  0.44887177, 0.404713]
 MiniImageNet_std = [0.28407582, 0.2758255,  0.29091981]
@@ -23,6 +24,36 @@ transformAug = transforms.Compose([
         transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))
     ], p=0.5)
 ])
+
+def knn_validation(model, train_loader_ev, val_loader, knn_k, knn_t, device):
+    model.eval()
+    with torch.no_grad():
+
+        top1_acc, top5_acc, total_num, feature_bank = 0, 0, 0, []
+        classes = train_loader_ev.dataset.num_classes
+
+        with torch.inference_mode():
+            for data, target in train_loader_ev:
+                feature = model.f(data.to(device))
+                feature = F.normalize(feature, dim=1)
+                feature_bank.append(feature)
+
+            feature_bank = torch.cat(feature_bank, dim=0).t().contiguous()
+            feature_labels = torch.tensor(train_loader_ev.dataset.targets, device=feature_bank.device)
+
+            for data, target in val_loader:
+                data, target = data.to(device), target.to(device)
+                feature = model.f(data)
+                feature = F.normalize(feature, dim=1)
+                pred_labels = knn_predict(feature, feature_bank, feature_labels, classes, knn_k=knn_k, knn_t=knn_t)
+                total_num += data.size(0)
+                top1_acc += (pred_labels[:, 0] == target).float().sum().item()
+                top5_acc += sum([target[i].item() in pred_labels[i, :5].tolist() for i in range(target.size(0))])
+
+        top1_acc = top1_acc / total_num
+        top5_acc = top5_acc / total_num
+
+    return top1_acc, top5_acc
 
 def knn_predict(feature, feature_bank, feature_labels, classes, knn_k=200, knn_t=0.1):
     # compute cos similarity between each feature vector and feature bank ---> [B, N]

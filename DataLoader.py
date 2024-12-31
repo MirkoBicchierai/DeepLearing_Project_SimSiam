@@ -28,8 +28,6 @@ class ImageNetDataset(Dataset):
     def __getitem__(self, idx):
         img_path, label = self.samples[idx]
         image = Image.open(img_path).convert("RGB")
-
-
         if self.mode == "train":
             aug1 = self.transform(image)
             aug2 = self.transform(image)
