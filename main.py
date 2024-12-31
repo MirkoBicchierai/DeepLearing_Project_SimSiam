@@ -36,39 +36,39 @@ if __name__ == "__main__":
     val_dir = 'Dataset/SPLITTED/Test'
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    batch_size = 48
+    batch_size = 96
+    num_workers = 12
     base_lr = 0.05
     lr = (base_lr * batch_size) / 256
     momentum = 0.9
     weight_decay = 0.0001
     epochs = 200
     test_step = 5
+
     knn_k = 200
     knn_t = 0.1
 
-    exp = comet_ml.Experiment(
-        project_name="Deep Learning Project",
-        auto_metric_logging=False,
-        auto_param_logging=False
-    )
+    dim = 512
+    predictor_dim = 128
+    stop_grad = True
+
+    exp = comet_ml.Experiment(project_name="Deep Learning Project", auto_metric_logging=False, auto_param_logging=False)
     parameters = {'batch_size': batch_size, 'learning_rate': lr, 'momentum': momentum, 'weight_decay': weight_decay}
     exp.log_parameters(parameters)
 
     train_dataset = ImageNetDataset(root_dir=train_dir, mode="train", transform=transformAug)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=12, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
     train_dataset_evMode = ImageNetDataset(root_dir=train_dir, mode="eval", transform=transform)
-    train_loader_ev = DataLoader(train_dataset_evMode, batch_size=batch_size, shuffle=False, num_workers=12,
-                                 pin_memory=True)
+    train_loader_ev = DataLoader(train_dataset_evMode, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
     val_dataset = ImageNetDataset(root_dir=val_dir, mode="eval", transform=transform)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=12, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
-    model = NetModel(512, 128, stop_grad=True)
+    model = NetModel(dim=dim, predictor_dim=predictor_dim, stop_grad=stop_grad)
     model.to(device)
 
-    optim_params = [{'params': model.encoder.parameters(), 'fixed': False},
-                    {'params': model.predictor.parameters(), 'fixed': True}]
+    optim_params = [{'params': model.encoder.parameters(), 'fixed': False}, {'params': model.predictor.parameters(), 'fixed': True}]
     optimizer = optim.SGD(optim_params, lr=lr, momentum=momentum, weight_decay=weight_decay)
     scaler = torch.amp.GradScaler()
 
@@ -82,8 +82,9 @@ if __name__ == "__main__":
             images_aug1 = images_aug1.to(device)
             images_aug2 = images_aug2.to(device)
             optimizer.zero_grad()
-            p1, p2, z1, z2 = model(images_aug1, images_aug2)
-            loss = -(criterion(p1, z2) + criterion(p2, z1)) * 0.5
+            with torch.autocast(device_type=device.type):
+                p1, p2, z1, z2 = model(images_aug1, images_aug2)
+                loss = -(criterion(p1, z2) + criterion(p2, z1)) * 0.5
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
