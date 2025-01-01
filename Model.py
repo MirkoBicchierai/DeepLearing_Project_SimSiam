@@ -1,26 +1,43 @@
 import torch.nn as nn
 import torchvision.models as models
+import torch.nn.functional as F
 
+class D(nn.Module):
+    def __init__(self, stop_grad):
+        super(D, self).__init__()
+        self.stop_grad = stop_grad
+
+    def forward(self, p, z):
+
+        if self.stop_grad:
+            z = z.detach()
+
+        p = F.normalize(p, p=2, dim=1)
+        z = F.normalize(z, p=2, dim=1)
+
+        return -(p * z).sum(dim=1).mean()
 
 class NetModel(nn.Module):
     def __init__(self, dim, predictor_dim, stop_grad):
         super(NetModel, self).__init__()
-        self.stop_grad = stop_grad
-        self.encoder = models.resnet18(num_classes=dim, zero_init_residual=True, weights=None)
 
-        # build a 3-layer projector
-        prev_dim = self.encoder.fc.weight.shape[1]
-        self.encoder.fc = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
-                                        nn.BatchNorm1d(prev_dim),
-                                        nn.ReLU(inplace=True),
-                                        nn.Linear(prev_dim, prev_dim, bias=False),
-                                        nn.BatchNorm1d(prev_dim),
-                                        nn.ReLU(inplace=True),
-                                        self.encoder.fc,
-                                        nn.BatchNorm1d(dim, affine=False))
-        self.encoder.fc[6].bias.requires_grad = False
+        self.d = D(stop_grad)
 
-        # build a 2-layer predictor
+        resnet18 = models.resnet18(weights=None)
+        self.backbone = nn.Sequential(*list(resnet18.children())[:-1])
+        prev_dim = resnet18.fc.in_features
+
+        self.projector = nn.Sequential(
+            nn.Linear(prev_dim, dim, bias=False),
+            nn.BatchNorm1d(dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(dim, dim, bias=False),
+            nn.BatchNorm1d(dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(dim, dim, bias=False),
+            nn.BatchNorm1d(dim, affine=False)
+        )
+
         self.predictor = nn.Sequential(nn.Linear(dim, predictor_dim, bias=False),
                                         nn.BatchNorm1d(predictor_dim),
                                         nn.ReLU(inplace=True),
@@ -29,20 +46,21 @@ class NetModel(nn.Module):
 
     def forward(self, aug1, aug2):
 
-        z1 = self.encoder(aug1)
-        z2 = self.encoder(aug2)
+        out1 = self.backbone(aug1).squeeze()
+        z1 = self.projector(out1)
+
+        out2 = self.backbone(aug2).squeeze()
+        z2 = self.projector(out2)
 
         p1 = self.predictor(z1)
         p2 = self.predictor(z2)
 
-        if self.stop_grad:
-            return p1, p2, z1.detach(), z2.detach()
-        else:
-            return p1, p2, z1, z2
+        return self.d(p1, z2) / 2., self.d(p2, z1) / 2., z1, z2
 
 
     def f(self, x):
-        z1 = self.encoder(x)
+        out1 = self.backbone(x).squeeze()
+        z1 = self.projector(out1)
         return z1
 
 

@@ -1,31 +1,11 @@
-import math
 import comet_ml
 import torch
 from torch.utils.data import DataLoader
 from DataLoader import ImageNetDataset
 from tqdm import tqdm
-import torch.nn.functional as F
 import torch.optim as optim
 from Model import NetModel
 from common import transformAug, transform, knn_validation
-
-
-def lr_scheduling(opt, init_lr, actual_epoch, tot_epochs):
-    cur_lr = init_lr * 0.5 * (1. + math.cos(math.pi * actual_epoch / tot_epochs))
-    for param_group in opt.param_groups:
-        if 'fixed' in param_group and param_group['fixed']:
-            param_group['fixed'] = init_lr
-        else:
-            param_group['fixed'] = cur_lr
-
-
-def criterion(p, z, version='simplified'):
-    if version == 'original': # paper implementation
-        p = F.normalize(p, dim=1)
-        z = F.normalize(z, dim=1)
-        return -(p * z).sum(dim=1).mean()
-    elif version == 'simplified':  # same thing, much faster
-        return - F.cosine_similarity(p, z.detach(), dim=-1).mean()
 
 
 if __name__ == "__main__":
@@ -43,7 +23,7 @@ if __name__ == "__main__":
     momentum = 0.9
     weight_decay = 0.0001
     epochs = 200
-    test_step = 5
+    test_step = 2
 
     knn_k = 200
     knn_t = 0.1
@@ -68,13 +48,12 @@ if __name__ == "__main__":
     model = NetModel(dim=dim, predictor_dim=predictor_dim, stop_grad=stop_grad)
     model.to(device)
 
-    optim_params = [{'params': model.encoder.parameters(), 'fixed': False}, {'params': model.predictor.parameters(), 'fixed': True}]
-    optimizer = optim.SGD(optim_params, lr=lr, momentum=momentum, weight_decay=weight_decay)
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
     scaler = torch.amp.GradScaler()
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     num_batches = len(train_loader)
     for epoch in tqdm(range(epochs), desc="Training"):
-        lr_scheduling(optimizer, lr, epoch, epochs)
         model.train()
         running_loss = 0
         all_normalized_outputs = []
@@ -83,13 +62,11 @@ if __name__ == "__main__":
             images_aug2 = images_aug2.to(device)
             optimizer.zero_grad()
             with torch.autocast(device_type=device.type):
-                p1, p2, z1, z2 = model(images_aug1, images_aug2)
-                loss = -(criterion(p1, z2) + criterion(p2, z1)) * 0.5
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
+                d1, d2, z1, z2 = model(images_aug1, images_aug2)
+                loss = d1+d2
+            scaler.scale(loss).backward() # loss.backward()
+            scaler.step(optimizer) # optimizer.step()
             scaler.update()
-            # loss.backward()
-            # optimizer.step()
             running_loss += loss.item()
 
             if epoch % test_step == 0:
@@ -98,6 +75,8 @@ if __name__ == "__main__":
                     all_normalized_outputs.append(z1_norm)
                     z2_norm = z2 / z2.norm(dim=1, keepdim=True)
                     all_normalized_outputs.append(z2_norm)
+
+        scheduler.step()
 
         epoch_loss = running_loss / num_batches
         print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}")
