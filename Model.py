@@ -64,14 +64,18 @@ class NetModel(nn.Module):
 
 
 class LinearEvaluationModel(nn.Module):
-    def __init__(self, input_dim, output_dim, backbone):
+    def __init__(self, input_dim, num_classes, backbone):
         super(LinearEvaluationModel, self).__init__()
         self.backbone = backbone
         for param in backbone.parameters():
             param.requires_grad = False
-        self.linear = nn.Linear(input_dim, output_dim)
+
+        self.linear = nn.Linear(input_dim, num_classes)
+        self.linear.weight.data.normal_(mean=0.0, std=0.01)
+        self.linear.bias.data.zero_()
 
     def forward(self, x):
-        z1 = self.backbone.f(x)
+        z1 = self.backbone(x)
+        z1 = z1.squeeze()
         x = self.linear(z1)
         return x
