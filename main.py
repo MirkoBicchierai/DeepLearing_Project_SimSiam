@@ -1,4 +1,3 @@
-import math
 import comet_ml
 import torch
 from torch.utils.data import DataLoader
@@ -7,16 +6,6 @@ from tqdm import tqdm
 import torch.optim as optim
 from Model import NetModel
 from common import transformAug, transform, knn_validation
-
-
-def learning_rate_schedule(opt, init_lr, actual_epoch, max_epochs):
-    """Decay the learning rate based on schedule"""
-    cur_lr = init_lr * 0.5 * (1. + math.cos(math.pi * actual_epoch / max_epochs))
-    for param_group in opt.param_groups:
-        if param_group['fixed']:
-            param_group['lr'] = init_lr
-        else:
-            param_group['lr'] = cur_lr
 
 
 if __name__ == "__main__":
@@ -59,17 +48,14 @@ if __name__ == "__main__":
     model = NetModel(dim=dim, predictor_dim=predictor_dim, stop_grad=stop_grad)
     model.to(device)
 
-    optim_params = [{'params': model.backbone.parameters(), 'fixed': False},
-                    {'params': model.projector.parameters(), 'fixed': False},
-                    {'params': model.predictor.parameters(), 'fixed': True}]
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    optimizer = optim.SGD(optim_params, lr=lr, momentum=momentum, weight_decay=weight_decay)
     scaler = torch.amp.GradScaler()
 
     num_batches = len(train_loader)
     for epoch in tqdm(range(epochs), desc="Training"):
         model.train()
-        learning_rate_schedule(optimizer, lr, epoch, epochs)
         running_loss = 0
         all_normalized_outputs = []
         for images_aug1, images_aug2 in train_loader:
@@ -94,6 +80,8 @@ if __name__ == "__main__":
         epoch_loss = running_loss / num_batches
         print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}")
         exp.log_metric('loss', epoch_loss, step=epoch)
+
+        scheduler.step()
 
         if epoch % test_step == 0:
 
