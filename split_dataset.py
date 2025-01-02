@@ -67,7 +67,7 @@ def mean_std_dataset(dataset_path):
 
 
 if __name__ == "__main__":
-    root_folder = "/home/mirko/PycharmProjects/DeepLearing Project/Dataset/CLEAR"
+    root_folder = "Dataset/CLEAR"
     split_dataset(root_folder)
     m, s = mean_std_dataset(root_folder)
     print(f"Mean: {m}")
