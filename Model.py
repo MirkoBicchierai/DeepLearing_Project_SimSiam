@@ -58,7 +58,7 @@ class NetModel(nn.Module):
         return self.d(p1, z2) / 2., self.d(p2, z1) / 2., z1, z2
 
 
-    def f(self, x):
+    def get_backbone_out(self, x):
         backbone_out = self.backbone(x).squeeze()
         return backbone_out
 

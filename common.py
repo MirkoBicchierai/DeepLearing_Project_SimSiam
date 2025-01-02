@@ -34,7 +34,7 @@ def knn_validation(model, train_loader_ev, val_loader, knn_k, knn_t, device):
 
         with torch.inference_mode():
             for data, target in train_loader_ev:
-                feature = model.f(data.to(device))
+                feature = model.get_backbone_out(data.to(device))
                 feature = F.normalize(feature, dim=1)
                 feature_bank.append(feature)
 
@@ -43,7 +43,7 @@ def knn_validation(model, train_loader_ev, val_loader, knn_k, knn_t, device):
 
             for data, target in val_loader:
                 data, target = data.to(device), target.to(device)
-                feature = model.f(data)
+                feature = model.get_backbone_out(data)
                 feature = F.normalize(feature, dim=1)
                 pred_labels = knn_predict(feature, feature_bank, feature_labels, classes, knn_k=knn_k, knn_t=knn_t)
                 total_num += data.size(0)
