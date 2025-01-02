@@ -127,8 +127,8 @@ def main():
         top1, top5, val_loss = test(model, val_loader, criterion)
         print("Top1:", str(top1), "Top5:", str(top5), "Validation Loss:", str(val_loss))
         exp.log_metric('Linear Evaluation Loss Evaluation', val_loss, step=epoch)
-        exp.log_metric('Linear Evaluation Top1', top1, step=epoch)
-        exp.log_metric('Linear Evaluation Top5', top5, step=epoch)
+        exp.log_metric('Linear Evaluation Top1 Accuracy', top1, step=epoch)
+        exp.log_metric('Linear Evaluation Top5 Accuracy', top5, step=epoch)
 
 if __name__ == "__main__":
     main()
