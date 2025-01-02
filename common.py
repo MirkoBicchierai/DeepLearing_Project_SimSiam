@@ -2,18 +2,18 @@ import torch
 from torchvision.transforms import transforms
 import torch.nn.functional as F
 
-MiniImageNet_mean = [0.4727902,  0.44887177, 0.404713]
-MiniImageNet_std = [0.28407582, 0.2758255,  0.29091981]
+ImageNet_mean = [0.485,  0.456, 0.406]
+ImageNet_std = [0.229, 0.224,  0.225]
 
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=MiniImageNet_mean,  std=MiniImageNet_std)
+    transforms.Normalize(mean=ImageNet_mean,  std=ImageNet_std)
 ])
 
 transformAug = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize(mean=MiniImageNet_mean,  std=MiniImageNet_std),
+    transforms.Normalize(mean=ImageNet_mean,  std=ImageNet_std),
     transforms.RandomResizedCrop(size=224, scale=(0.2, 1.0)),  # Scale range [0.2, 1.0]
     transforms.RandomHorizontalFlip(),  # Horizontal flip with 50% probability
     transforms.RandomApply([  # Apply color jitter with a probability of 0.8
