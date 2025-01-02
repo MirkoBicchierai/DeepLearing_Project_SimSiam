@@ -59,9 +59,8 @@ class NetModel(nn.Module):
 
 
     def f(self, x):
-        out1 = self.backbone(x).squeeze()
-        z1 = self.projector(out1)
-        return z1
+        backbone_out = self.backbone(x).squeeze()
+        return backbone_out
 
 
 class LinearEvaluationModel(nn.Module):
