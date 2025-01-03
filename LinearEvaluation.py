@@ -50,11 +50,11 @@ def test(model, test_loader, criterion):
 def main():
 
     path = "Models/SimSiam/model_200_96_Checkpoint_150.pth"
-    batch_size = 64
+    batch_size = 48
     epochs = 100
-    lr =0.1
+    lr = 0.1
     momentum=0.9
-    weight_decay=0.0001
+    weight_decay= 0
     schedule = [60,80]
 
     comet_ml.login(api_key="S8bPmX5TXBAi6879L55Qp3eWW")
