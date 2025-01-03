@@ -7,6 +7,12 @@ import torch.optim as optim
 from Model import NetModel
 from common import transformAug, transform, knn_validation
 
+import numpy as np
+import random
+
+torch.manual_seed(27)
+np.random.seed(27)
+random.seed(27)
 
 if __name__ == "__main__":
 
@@ -18,12 +24,12 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     batch_size = 96
     num_workers = 12
-    base_lr = 0.05
+    base_lr = 0.03
     lr = (base_lr * batch_size) / 256
     momentum = 0.9
-    weight_decay = 0.0001
+    weight_decay = 0.0005
     epochs = 200
-    test_step = 2
+    val_step = 2
 
     knn_k = 200
     knn_t = 0.1
@@ -70,7 +76,7 @@ if __name__ == "__main__":
             scaler.update()
             running_loss += loss.item()
 
-            if epoch % test_step == 0:
+            if epoch % val_step == 0:
                 with torch.no_grad():
                     z1_norm = z1 / z1.norm(dim=1, keepdim=True)
                     all_normalized_outputs.append(z1_norm)
@@ -83,7 +89,7 @@ if __name__ == "__main__":
 
         scheduler.step()
 
-        if epoch % test_step == 0:
+        if epoch % val_step == 0:
 
             all_normalized_outputs = torch.cat(all_normalized_outputs, dim=0)
             std_per_channel = all_normalized_outputs.std(dim=0)  # Std per channel
@@ -96,7 +102,9 @@ if __name__ == "__main__":
             exp.log_metric('val_top1_accuracy', top1_accuracy, step=epoch)
             exp.log_metric('val_top5_accuracy', top5_accuracy, step=epoch)
 
-        if epoch % 50 == 0:
-            torch.save(model, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_Checkpoint_" + str(epoch) + ".pth")
+        if epoch % 10 == 0:
+            torch.save({'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()}, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_Checkpoint_" + str(epoch) + ".pth")
 
     torch.save(model, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + ".pth")

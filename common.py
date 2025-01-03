@@ -12,8 +12,6 @@ transform = transforms.Compose([
 ])
 
 transformAug = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=ImageNet_mean,  std=ImageNet_std),
     transforms.RandomResizedCrop(size=224, scale=(0.2, 1.0)),  # Scale range [0.2, 1.0]
     transforms.RandomHorizontalFlip(),  # Horizontal flip with 50% probability
     transforms.RandomApply([  # Apply color jitter with a probability of 0.8
@@ -22,7 +20,9 @@ transformAug = transforms.Compose([
     transforms.RandomGrayscale(p=0.2),  # 20% chance to convert to grayscale
     transforms.RandomApply([  # Apply Gaussian blur with std in [0.1, 2.0]
         transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))
-    ], p=0.5)
+    ], p=0.5),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=ImageNet_mean, std=ImageNet_std)
 ])
 
 def knn_validation(model, train_loader_ev, val_loader, knn_k, knn_t, device):
