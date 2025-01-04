@@ -75,7 +75,7 @@ class LinearEvaluationModel(nn.Module):
         self.linear.bias.data.zero_()
 
     def forward(self, x):
-        z1 = self.backbone(x)
-        z1 = z1.squeeze()
-        x = self.linear(z1)
+        out = self.backbone(x)
+        out = out.squeeze()
+        x = self.linear(out)
         return x
