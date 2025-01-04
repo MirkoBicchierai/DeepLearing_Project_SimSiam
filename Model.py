@@ -46,10 +46,10 @@ class NetModel(nn.Module):
 
     def forward(self, aug1, aug2):
 
-        out1 = self.backbone(aug1).squeeze(-1)
+        out1 = self.backbone(aug1).squeeze()
         z1 = self.projector(out1)
 
-        out2 = self.backbone(aug2).squeeze(-1)
+        out2 = self.backbone(aug2).squeeze()
         z2 = self.projector(out2)
 
         p1 = self.predictor(z1)
@@ -59,7 +59,7 @@ class NetModel(nn.Module):
 
 
     def get_backbone_out(self, x):
-        backbone_out = self.backbone(x).squeeze(-1)
+        backbone_out = self.backbone(x).squeeze()
         return backbone_out
 
 

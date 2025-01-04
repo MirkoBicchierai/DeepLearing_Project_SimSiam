@@ -1,3 +1,4 @@
+import math
 import comet_ml
 import torch
 from torch.utils.data import DataLoader
@@ -7,12 +8,15 @@ import torch.optim as optim
 from Model import NetModel
 from common import transformAug, transform, knn_validation
 
-import numpy as np
-import random
 
-torch.manual_seed(27)
-np.random.seed(27)
-random.seed(27)
+def lr_scheduler(opt, init_lr, actual_epoch, max_epoch):
+    """Decay the learning rate based on schedule"""
+    cur_lr = init_lr * 0.5 * (1. + math.cos(math.pi * actual_epoch / max_epoch))
+    for param_group in opt.param_groups:
+        if 'fixed' in param_group and param_group['fixed']:
+            param_group['lr'] = init_lr
+        else:
+            param_group['lr'] = cur_lr
 
 if __name__ == "__main__":
 
@@ -24,12 +28,12 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     batch_size = 96
     num_workers = 12
-    base_lr = 0.03
+    base_lr = 0.05
     lr = (base_lr * batch_size) / 256
     momentum = 0.9
-    weight_decay = 0.0005
+    weight_decay = 0.0001
     epochs = 200
-    val_step = 2
+    val_step = 1
 
     knn_k = 200
     knn_t = 0.1
@@ -54,13 +58,17 @@ if __name__ == "__main__":
     model = NetModel(dim=dim, predictor_dim=predictor_dim, stop_grad=stop_grad)
     model.to(device)
 
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    optim_params = [{'params': model.backbone.parameters(), 'fixed': False},
+                    {'params': model.projector.parameters(), 'fixed': False},
+                    {'params': model.predictor.parameters(), 'fixed': True}]
+
+    optimizer = optim.SGD(optim_params, lr=lr, momentum=momentum, weight_decay=weight_decay)
 
     scaler = torch.amp.GradScaler()
 
     num_batches = len(train_loader)
     for epoch in tqdm(range(epochs), desc="Training"):
+        lr_scheduler(optimizer,lr, epoch, epochs)
         model.train()
         running_loss = 0
         all_normalized_outputs = []
@@ -84,10 +92,8 @@ if __name__ == "__main__":
                     all_normalized_outputs.append(z2_norm)
 
         epoch_loss = running_loss / num_batches
-        print(f"Epoch: {epoch + 1}, Loss: {epoch_loss}")
+        print(f"Epoch: {epoch}, Loss: {epoch_loss}")
         exp.log_metric('loss', epoch_loss, step=epoch)
-
-        scheduler.step()
 
         if epoch % val_step == 0:
 
@@ -97,7 +103,7 @@ if __name__ == "__main__":
 
             top1_accuracy, top5_accuracy = knn_validation(model, train_loader_ev, val_loader,knn_k, knn_t, device)
 
-            print(f"Epoch: {epoch + 1}, avg_std: {avg_epoch_std}, Top-1 Knn Accuracy: {top1_accuracy:.4f}, Top-5 Knn Accuracy: {top5_accuracy:.4f}")
+            print(f"Epoch: {epoch}, avg_std: {avg_epoch_std}, Top-1 Knn Accuracy: {top1_accuracy:.4f}, Top-5 Knn Accuracy: {top5_accuracy:.4f}")
             exp.log_metric('avg_std', avg_epoch_std, step=epoch)
             exp.log_metric('val_top1_accuracy', top1_accuracy, step=epoch)
             exp.log_metric('val_top5_accuracy', top5_accuracy, step=epoch)
@@ -107,4 +113,6 @@ if __name__ == "__main__":
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict()}, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_Checkpoint_" + str(epoch) + ".pth")
 
-    torch.save(model, "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + ".pth")
+    torch.save({'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict()},
+                    "Models/SimSiam/model_" + str(epochs) + "_" + str(batch_size) + "_Final.pth")
