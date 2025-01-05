@@ -41,6 +41,8 @@ if __name__ == "__main__":
     dim = 512
     predictor_dim = 128
     stop_grad = True
+    type_loss = "Cross Entropy Similarity" # Cosine Similarity
+    Symmetric = True
 
     exp = comet_ml.Experiment(project_name="Deep Learning Project", auto_metric_logging=False, auto_param_logging=False)
     parameters = {'batch_size': batch_size, 'learning_rate': lr, 'momentum': momentum, 'weight_decay': weight_decay}
@@ -55,7 +57,7 @@ if __name__ == "__main__":
     val_dataset = ImageNetDataset(root_dir=val_dir, mode="eval", transform=transform)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
-    model = NetModel(dim=dim, predictor_dim=predictor_dim, stop_grad=stop_grad)
+    model = NetModel(dim=dim, predictor_dim=predictor_dim, stop_grad=stop_grad, type_loss=type_loss)
     model.to(device)
 
     optim_params = [{'params': model.backbone.parameters(), 'fixed': False},
@@ -78,7 +80,10 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             with torch.autocast(device_type=device.type):
                 d1, d2, z1, z2 = model(images_aug1, images_aug2)
-                loss = d1+d2
+                if Symmetric:
+                    loss = d1+d2
+                else:
+                    loss = d1
             scaler.scale(loss).backward() # loss.backward()
             scaler.step(optimizer) # optimizer.step()
             scaler.update()

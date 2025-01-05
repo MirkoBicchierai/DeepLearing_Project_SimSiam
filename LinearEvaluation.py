@@ -170,7 +170,6 @@ def get_dataloader(dataset, batch_size, num_workers):
 def get_args():
 
     parser = argparse.ArgumentParser(description="Parser for training parameters")
-
     parser.add_argument("--path", type=str, default="Models/SimSiam/BUONO_40.pth",
                         help="Path to the model file")
     parser.add_argument("--batch_size", type=int, default=128,

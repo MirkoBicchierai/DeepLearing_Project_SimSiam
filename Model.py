@@ -2,26 +2,34 @@ import torch.nn as nn
 import torchvision.models as models
 import torch.nn.functional as F
 
+
 class D(nn.Module):
-    def __init__(self, stop_grad):
+    def __init__(self, stop_grad, type_loss):
         super(D, self).__init__()
         self.stop_grad = stop_grad
+        self.type = type_loss
 
     def forward(self, p, z):
 
         if self.stop_grad:
             z = z.detach()
 
-        p = F.normalize(p, p=2, dim=1)
-        z = F.normalize(z, p=2, dim=1)
+        if self.type == "Cosine Similarity":
+            p = F.normalize(p, p=2, dim=1)
+            z = F.normalize(z, p=2, dim=1)
+            return -(p * z).sum(dim=1).mean()
 
-        return -(p * z).sum(dim=1).mean()
+        if self.type == "Cross Entropy Similarity":
+            z_softmax = F.softmax(z, dim=1)
+            log_p_softmax = F.log_softmax(p, dim=1)
+            return -(z_softmax * log_p_softmax).sum(dim=1).mean()
+
 
 class NetModel(nn.Module):
-    def __init__(self, dim, predictor_dim, stop_grad):
+    def __init__(self, dim, predictor_dim, stop_grad, type_loss):
         super(NetModel, self).__init__()
 
-        self.d = D(stop_grad)
+        self.d = D(stop_grad, type_loss)
 
         resnet18 = models.resnet18(weights=None)
         self.backbone = nn.Sequential(*list(resnet18.children())[:-1])
