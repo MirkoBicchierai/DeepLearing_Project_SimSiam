@@ -17,10 +17,8 @@ def create_graph(path, title, x_label, y_label):
             y = [float(value) if value != "NaN" else None for value in y]
             x, y = zip(*[(x_val, y_val) for x_val, y_val in zip(x, y) if y_val is not None])
 
-        # Plot each trace
         plt.plot(x, y, label=name)
 
-    # Add labels, legend, and title
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(title)
