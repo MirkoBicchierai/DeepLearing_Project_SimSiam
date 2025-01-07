@@ -1,11 +1,13 @@
 import os
 import random
 import shutil
-
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+"""
+Function used to split the MiniImageNet dataset into training and validation sets, following the 80-20 rule.
+"""
 
 def split_dataset(root_dir, train_ratio=0.8):
     train_dir = "Dataset/SPLITTED/Train"

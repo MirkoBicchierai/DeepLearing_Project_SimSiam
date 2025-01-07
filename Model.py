@@ -2,7 +2,10 @@ import torch.nn as nn
 import torchvision.models as models
 import torch.nn.functional as F
 
-
+"""
+Definition of the losses used for pretraining the NetModel (SimSiam), 
+implementing the Cosine Similarity Loss and the Cross Entropy Similarity Loss.
+"""
 class D(nn.Module):
     def __init__(self, stop_grad, type_loss):
         super(D, self).__init__()
@@ -24,7 +27,9 @@ class D(nn.Module):
             log_p_softmax = F.log_softmax(p, dim=1)
             return -(z_softmax * log_p_softmax).sum(dim=1).mean()
 
-
+"""
+SimSiam Model
+"""
 class NetModel(nn.Module):
     def __init__(self, dim, predictor_dim, stop_grad, type_loss):
         super(NetModel, self).__init__()
@@ -70,7 +75,9 @@ class NetModel(nn.Module):
         backbone_out = self.backbone(x).squeeze()
         return backbone_out
 
-
+"""
+Model Used for the Linear Evaluation
+"""
 class LinearEvaluationModel(nn.Module):
     def __init__(self, input_dim, num_classes, backbone):
         super(LinearEvaluationModel, self).__init__()

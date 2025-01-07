@@ -1,6 +1,12 @@
 import json
 import matplotlib.pyplot as plt
 
+
+"""
+Function used to extract values from graphs created with comet_ml, starting from a JSON file, 
+and reconstruct the graphs using matplotlib.
+"""
+
 def create_graph(path, title, x_label, y_label):
 
     with open(path, 'r') as f:

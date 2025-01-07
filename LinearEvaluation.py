@@ -11,6 +11,11 @@ import argparse
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+"""
+ Function that performs a test using the dataloader passed as an argument (test_loader), 
+ calculating the top-1 accuracy and top-5 accuracy.
+"""
+
 def test(model, test_loader, criterion):
     model.eval()
     total_top1, total_top5, total_num = 0, 0, 0
@@ -36,7 +41,9 @@ def test(model, test_loader, criterion):
 
     return (total_top1 / total_num), (total_top5 / total_num), total_val_loss / total_num
 
-
+"""
+ Function that loads the selected dataset for linear evaluation and performs the split into training, validation, and test sets.
+"""
 def get_dataloader(dataset, batch_size, num_workers):
     if dataset == "MiniImageNet":
         num_classes = 100
@@ -98,16 +105,22 @@ def get_dataloader(dataset, batch_size, num_workers):
 
     return test_loader, val_loader, train_loader, num_classes
 
+
+"""
+ Function to retrieve all training parameters using a parser
+"""
+
 def get_args():
 
     parser = argparse.ArgumentParser(description="Parser for Linear Evaluation training parameters")
-    parser.add_argument("--path", type=str, default="Models/SimSiam/Asymmetric Loss/model_200_96_Final.pth",
+
+    parser.add_argument("--path", type=str, default="Models/SimSiam/Symmetric Loss/model_200_96_Final.pth",
                         help="Path to the model file")
     parser.add_argument("--batch_size", type=int, default=128,
                         help="Batch size for training, default 128")
     parser.add_argument("--epochs", type=int, default=100,
                         help="Number of epochs for training, default 100")
-    parser.add_argument("--lr", type=float, default=0.025,
+    parser.add_argument("--lr", type=float, default=0.2,
                         help="Learning rate for optimizer (Used: 0.025 Cifar10)")
     parser.add_argument("--momentum", type=float, default=0.9,
                         help="Momentum value for optimizer, default 0.9")
@@ -115,7 +128,7 @@ def get_args():
                         help="Weight decay, default 0")
     parser.add_argument("--num_workers", type=int, default=12,
                         help="Number of workers for data loading, default 12")
-    parser.add_argument("--dataset", type=str, default="Cifar10", choices=["Cifar10", "MiniImageNet"],
+    parser.add_argument("--dataset", type=str, default="MiniImageNet", choices=["Cifar10", "MiniImageNet"],
                         help="Dataset name")
     parser.add_argument("--projector_dim", type=int, default=512,
                         help="Projector dimension of pretrained model, default 512")
@@ -124,6 +137,9 @@ def get_args():
 
     return parser.parse_args()
 
+"""
+ Function to train the LinearEvaluationModel, performing a test on the validation set at each epoch.
+"""
 def train(model, epochs, optimizer, scheduler, criterion, train_loader, val_loader, dataset, exp):
     model.eval()
     for epoch in tqdm(range(epochs)):
@@ -144,16 +160,22 @@ def train(model, epochs, optimizer, scheduler, criterion, train_loader, val_load
         scheduler.step()
 
         train_loss = total_loss / total_num
-        print("Train Loss:", str(train_loss))
+        print("Epoch: ", str(epoch), "Train Loss:", str(train_loss))
         exp.log_metric(dataset + ' Linear Evaluation Loss Train', train_loss, step=epoch)
 
         top1, top5, val_loss = test(model, val_loader, criterion)
 
-        print("Top1:", str(top1), "Top5:", str(top5), "Validation Loss:", str(val_loss))
+        print("Epoch: ", str(epoch), "Top1:", str(top1), "Top5:", str(top5), "Validation Loss:", str(val_loss))
         exp.log_metric(dataset + ' Linear Evaluation Loss Evaluation', val_loss, step=epoch)
         exp.log_metric(dataset + ' Linear Evaluation Top1 Accuracy - Validation', top1, step=epoch)
         exp.log_metric(dataset + ' Linear Evaluation Top5 Accuracy - Validation', top5, step=epoch)
 
+
+"""
+ Main function that retrieves all parameters from the parser, loads the pretrained model, 
+ and defines the LinearEvaluationModel to be used. Additionally, it loads one of the two selected datasets: MiniImageNet or Cifar10.
+ Also defines the loss used for training, specifically the CrossEntropyLoss.
+"""
 def main():
 
     args = get_args()
@@ -166,10 +188,10 @@ def main():
     test_loader, val_loader, train_loader, num_classes = get_dataloader(args.dataset, args.batch_size, args.num_workers)
 
     checkpoint = torch.load(args.path, map_location="cuda")
-    pretrained_model = NetModel(dim=args.dim, predictor_dim=args.predictor_dim,stop_grad=True, type_loss="Cosine Similarity").cuda()
+    pretrained_model = NetModel(dim=args.projector_dim, predictor_dim=args.predictor_dim,stop_grad=True, type_loss="Cosine Similarity").cuda()
     pretrained_model.load_state_dict(checkpoint["model_state_dict"], strict=False)
 
-    model = LinearEvaluationModel(input_dim=args.dim, num_classes=num_classes, backbone=pretrained_model.backbone).cuda()
+    model = LinearEvaluationModel(input_dim=args.projector_dim, num_classes=num_classes, backbone=pretrained_model.backbone).cuda()
 
     criterion = nn.CrossEntropyLoss().cuda()
     optimizer = torch.optim.SGD(model.parameters(),args.lr,momentum=args.momentum,weight_decay=args.weight_decay)

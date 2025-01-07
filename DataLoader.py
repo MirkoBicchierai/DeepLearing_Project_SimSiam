@@ -2,8 +2,15 @@ import os
 from torch.utils.data import Dataset
 from PIL import Image
 
+"""
+Dataloader for the MiniImageNet dataset.
+The mode parameter is used to determine how to execute the __getitem__. 
+In the case of training, it returns two augmented versions of each image, while in the other case, 
+it returns the image without augmentation and its label.
+"""
+
 class ImageNetDataset(Dataset):
-    def __init__(self, root_dir,mode, transform):
+    def __init__(self, root_dir, mode, transform):
         self.root_dir = root_dir
         self.transform = transform
         self.samples = []

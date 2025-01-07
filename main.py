@@ -12,6 +12,10 @@ import argparse
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+"""
+ Function to retrieve all training parameters using a parser
+"""
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Training configuration parser")
 
@@ -43,8 +47,10 @@ def parse_arguments():
 
     return parser.parse_args()
 
-
-def knn_validation(model, train_loader_ev, val_loader, knn_k, knn_t, device):
+"""
+ Function to perform a test on the validation set during training using a KNN, feature extraction of the dataset using only the output of the backbone
+"""
+def knn_validation(model, train_loader_ev, val_loader, knn_k, knn_t):
     model.eval()
     with torch.no_grad():
 
@@ -74,6 +80,17 @@ def knn_validation(model, train_loader_ev, val_loader, knn_k, knn_t, device):
 
     return top1_acc, top5_acc
 
+"""
+Function to compute the predicted label using a KNN.
+
+# 1. Compute the similarity matrix between the query features and the feature bank using matrix multiplication.
+# 2. Select the top-k nearest neighbors (similarity scores and indices).
+# 3. Retrieve the labels of the top-k neighbors and scale the similarity weights using the temperature parameter.
+# 4. Create one-hot encodings for the labels of the top-k neighbors.
+# 5. Compute the prediction scores by summing the weighted one-hot encodings for each class.
+# 6. Return the predicted labels, sorted by descending prediction score.
+
+"""
 
 def knn_predict(feature, feature_bank, feature_labels, classes, knn_k=200, knn_t=0.1):
     sim_matrix = torch.mm(feature, feature_bank)
@@ -90,6 +107,10 @@ def knn_predict(feature, feature_bank, feature_labels, classes, knn_k=200, knn_t
 
     return pred_labels
 
+
+"""
+Function to schedule the learning rate during training, scheduling only the model parameters labeled with fixed = False
+"""
 def lr_scheduler(opt, init_lr, actual_epoch, max_epoch):
     cur_lr = init_lr * 0.5 * (1. + math.cos(math.pi * actual_epoch / max_epoch))
     for param_group in opt.param_groups:
@@ -98,7 +119,13 @@ def lr_scheduler(opt, init_lr, actual_epoch, max_epoch):
         else:
             param_group['lr'] = cur_lr
 
+"""
+Function to train the SimSiam model, also performing calls to knn_validation() for validation at each val_step. 
+Additionally, it computes the mean standard deviation of the model outputs at each val_step.
 
+The args.symmetric parameter is used to determine whether to use the symmetric version of the loss function (d1 + d2) 
+or the asymmetric version (only d1).
+"""
 def train(model, optimizer, train_loader, train_loader_ev, val_loader, lr, args, exp):
     scaler = torch.amp.GradScaler()
     num_batches = len(train_loader)
@@ -138,7 +165,7 @@ def train(model, optimizer, train_loader, train_loader_ev, val_loader, lr, args,
             std_per_channel = all_normalized_outputs.std(dim=0)
             avg_epoch_std = std_per_channel.mean().item()
 
-            top1_accuracy, top5_accuracy = knn_validation(model, train_loader_ev, val_loader, args.knn_k, args.knn_t, device)
+            top1_accuracy, top5_accuracy = knn_validation(model, train_loader_ev, val_loader, args.knn_k, args.knn_t)
 
             print(f"Epoch: {epoch}, avg_std: {avg_epoch_std}, Top-1 Knn Accuracy: {top1_accuracy:.4f}, Top-5 Knn Accuracy: {top5_accuracy:.4f}")
             exp.log_metric('avg_std', avg_epoch_std, step=epoch)
@@ -151,7 +178,12 @@ def train(model, optimizer, train_loader, train_loader_ev, val_loader, lr, args,
                             'optimizer_state_dict': optimizer.state_dict()},
                        "Models/SimSiam/model_" + str(args.epochs) + "_" + str(args.batch_size) + "_Checkpoint_" + str(epoch) + ".pth")
 
-
+"""
+Main function that sets up all the necessary dataloaders for training, retrieves the various parameters from the parser, 
+and also defines the optimizer to be used. 
+Creates and defines the model parameters. The args.stop_grad parameter is used to decide whether to apply a stop gradient on z during loss computation. 
+The args.type_loss parameter is used to select the type of loss to be used during training.
+"""
 def main():
 
     comet_ml.login(api_key="S8bPmX5TXBAi6879L55Qp3eWW")
