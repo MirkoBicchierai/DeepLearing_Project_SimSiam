@@ -89,7 +89,6 @@ Function to compute the predicted label using a KNN.
 # 4. Create one-hot encodings for the labels of the top-k neighbors.
 # 5. Compute the prediction scores by summing the weighted one-hot encodings for each class.
 # 6. Return the predicted labels, sorted by descending prediction score.
-
 """
 
 def knn_predict(feature, feature_bank, feature_labels, classes, knn_k=200, knn_t=0.1):

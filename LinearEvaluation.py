@@ -120,8 +120,8 @@ def get_args():
                         help="Batch size for training, default 128")
     parser.add_argument("--epochs", type=int, default=100,
                         help="Number of epochs for training, default 100")
-    parser.add_argument("--lr", type=float, default=0.2,
-                        help="Learning rate for optimizer (Used: 0.025 Cifar10)")
+    parser.add_argument("--lr", type=float, default=0.3,
+                        help="Learning rate for optimizer (Used: 0.025 Cifar10, 0.3 MiniImageNet)")
     parser.add_argument("--momentum", type=float, default=0.9,
                         help="Momentum value for optimizer, default 0.9")
     parser.add_argument("--weight_decay", type=float, default=0.0,

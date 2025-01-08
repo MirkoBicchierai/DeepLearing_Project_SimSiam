@@ -43,7 +43,9 @@ def split_dataset(root_dir, train_ratio=0.8):
 
         print(f"Processed class '{class_name}' with {len(train_files)} train and {len(test_files)} test files.")
 
-
+"""
+Function used to compute the mean and the std of the dataset.
+"""
 def mean_std_dataset(dataset_path):
     pixel_sum = np.zeros(3)
     pixel_sq_sum = np.zeros(3)
