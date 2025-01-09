@@ -8,6 +8,7 @@ from DataLoader import ImageNetDataset
 from Model import LinearEvaluationModel, NetModel
 import torchvision.transforms as T
 import argparse
+from torchinfo import summary
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -198,6 +199,10 @@ def main():
     model = model.cuda()
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+
+    input, _ = next(iter(train_loader))
+    summary(model.cuda(),input_data=input.cuda(),col_names=["input_size", "output_size", "num_params"],depth=5,)
+
     train(model, args.epochs, optimizer, scheduler, criterion, train_loader, val_loader, args.dataset, exp)
 
     top1, top5, _ = test(model, test_loader, criterion)

@@ -9,6 +9,7 @@ from Model import NetModel
 from torchvision.transforms import transforms
 import torch.nn.functional as F
 import argparse
+from torchinfo import summary
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -233,10 +234,17 @@ def main():
 
     optimizer = optim.SGD(optim_params, lr=lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
+    summary(
+        model,
+        input_size=[(args.batch_size, 3, 224, 224), (args.batch_size, 3, 224, 224)],
+        col_names=["input_size", "output_size", "num_params"],
+        depth=5,
+    )
+
     train(model, optimizer, train_loader, train_loader_ev, val_loader, lr, args, exp)
 
     torch.save({'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict()},
+                    'optimizer_state_dict': optimizer.state_dict()},
                "Models/SimSiam/model_" + str(args.epochs) + "_" + str(args.batch_size) + "_Final.pth")
 
 
