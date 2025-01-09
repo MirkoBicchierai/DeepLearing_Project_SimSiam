@@ -19,7 +19,7 @@ Instruction to reproduce the experimental results:
     Use the following command to train the SimSiam model:
 
     python3 main.py [--train_dir] [--val_dir] [--batch_size] [--num_workers] [--base_lr] [--momentum] [--weight_decay] [--epochs]
-                    [--val_step] [--knn_k] [--knn_t] [--dim] [--predictor_dim]
+                    [--val_step] [--knn_k] [--knn_t] [--projector_dim] [--predictor_dim]
 
     --train_dir (default: 'Dataset/SPLITTED/Train')
     Path to the training dataset directory.
