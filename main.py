@@ -38,7 +38,7 @@ def parse_arguments():
     parser.add_argument('--knn_t', type=float, default=0.1, help="Temperature parameter for KNN evaluation")
 
     # Model parameters
-    parser.add_argument('--dim', type=int, default=512, help="Dimensionality of the projector's feature representation")
+    parser.add_argument('--projector_dim', type=int, default=512, help="Dimensionality of the projector's feature representation")
     parser.add_argument('--predictor_dim', type=int, default=128, help="Dimensionality of the predictor's feature representation")
 
     # Loss type parameters
@@ -225,7 +225,7 @@ def main():
     val_dataset = ImageNetDataset(root_dir=args.val_dir, mode="eval", transform=transform)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
 
-    model = NetModel(dim=args.dim, predictor_dim=args.predictor_dim, stop_grad=args.stop_grad, type_loss=args.type_loss)
+    model = NetModel(dim=args.projector_dim, predictor_dim=args.predictor_dim, stop_grad=args.stop_grad, type_loss=args.type_loss)
     model.to(device)
 
     optim_params = [{'params': model.backbone.parameters(), 'fixed': False},
