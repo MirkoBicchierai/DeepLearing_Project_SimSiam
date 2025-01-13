@@ -1,6 +1,6 @@
 # SimSiam Implementation and Linear Evaluation
 
-A PyTorch implementation of SimSiam for self-supervised learning, with comprehensive evaluation on MiniImageNet and CIFAR-10 datasets.
+A PyTorch implementation of SimSiam (arXiv:2011.10566) for self-supervised learning, with comprehensive evaluation on MiniImageNet and CIFAR-10 datasets.
 
 ## 🚀 Quick Start
 
