@@ -68,10 +68,10 @@ def get_dataloader(dataset, batch_size, num_workers):
                 ),
             ])
 
-        test_set = ImageNetDataset(root_dir="./Dataset/SPLITTED/Test/", mode="eval", transform=test_transform)
+        test_set = ImageNetDataset(root_dir="./Dataset/Split/Test/", mode="eval", transform=test_transform)
         test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
-        train_set = ImageNetDataset(root_dir="./Dataset/SPLITTED/Train/", mode="eval", transform=train_transform)
+        train_set = ImageNetDataset(root_dir="./Dataset/Split/Train/", mode="eval", transform=train_transform)
         dataset_length = len(train_set)
         train_size = int(0.8 * dataset_length)
         val_size = dataset_length - train_size
@@ -115,6 +115,7 @@ def get_args():
 
     parser = argparse.ArgumentParser(description="Parser for Linear Evaluation training parameters")
 
+    parser.add_argument('--key', type=str, default='S8bPmX5TXBAi6879L55Qp3eWW', help="Comet ML Api Key")
     parser.add_argument("--path", type=str, default="Models/SimSiam/Symmetric Loss/model_200_96_Final.pth",
                         help="Path to the model file")
     parser.add_argument("--batch_size", type=int, default=128,
@@ -181,7 +182,7 @@ def main():
 
     args = get_args()
 
-    comet_ml.login(api_key="S8bPmX5TXBAi6879L55Qp3eWW")
+    comet_ml.login(api_key=args.key)
     exp = comet_ml.Experiment(project_name="Deep Learning Project", auto_metric_logging=False, auto_param_logging=False)
     parameters = {'batch_size': args.batch_size, 'learning_rate': args.lr, 'momentum': args.momentum, 'weight_decay': args.weight_decay, 'pretrain_model':args.path}
     exp.log_parameters(parameters)

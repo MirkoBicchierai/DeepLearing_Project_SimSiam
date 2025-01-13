@@ -10,8 +10,8 @@ Function used to split the MiniImageNet dataset into training and validation set
 """
 
 def split_dataset(root_dir, train_ratio=0.8):
-    train_dir = "Dataset/SPLITTED/Train"
-    test_dir = "Dataset/SPLITTED/Test"
+    train_dir = "Dataset/Split/Train"
+    test_dir = "Dataset/Split/Test"
 
     for class_name in os.listdir(root_dir):
         class_path = os.path.join(root_dir, class_name)

@@ -21,8 +21,10 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Training configuration parser")
 
     # Directories
-    parser.add_argument('--train_dir', type=str, default='Dataset/SPLITTED/Train', help="Path to the training dataset directory")
-    parser.add_argument('--val_dir', type=str, default='Dataset/SPLITTED/Test', help="Path to the validation dataset directory")
+    parser.add_argument('--key', type=str, default='S8bPmX5TXBAi6879L55Qp3eWW',help="Comet ML Api Key")
+
+    parser.add_argument('--train_dir', type=str, default='Dataset/Split/Train', help="Path to the training dataset directory")
+    parser.add_argument('--val_dir', type=str, default='Dataset/Split/Test', help="Path to the validation dataset directory")
 
     # Training parameters
     parser.add_argument('--batch_size', type=int, default=96, help="Batch size for training")
@@ -186,8 +188,9 @@ The args.type_loss parameter is used to select the type of loss to be used durin
 """
 def main():
 
-    comet_ml.login(api_key="S8bPmX5TXBAi6879L55Qp3eWW")
+
     args = parse_arguments()
+    comet_ml.login(api_key=args.key)
     lr = (args.base_lr * args.batch_size) / 256
 
     exp = comet_ml.Experiment(project_name="Deep Learning Project", auto_metric_logging=False, auto_param_logging=False)

@@ -1,4 +1,4 @@
-# SimSiam Implementation and Evaluation
+# SimSiam Implementation and Linear Evaluation
 
 A PyTorch implementation of SimSiam for self-supervised learning, with comprehensive evaluation on MiniImageNet and CIFAR-10 datasets.
 
@@ -42,24 +42,25 @@ python3 main.py [OPTIONS]
 
 ### Training Parameters
 
-| Parameter | Default Value | Description |
-|-----------|---------------|-------------|
-| `--train_dir` | 'Dataset/SPLITTED/Train' | Training dataset directory |
-| `--val_dir` | 'Dataset/SPLITTED/Test' | Validation dataset directory |
-| `--batch_size` | 96 | Training batch size |
-| `--num_workers` | 12 | Number of data loading workers |
-| `--base_lr` | 0.05 | Base learning rate |
-| `--momentum` | 0.9 | SGD momentum |
-| `--weight_decay` | 0.0001 | Weight decay |
-| `--epochs` | 200 | Number of training epochs |
-| `--val_step` | 1 | Validation frequency (epochs) |
-| `--knn_k` | 200 | Number of nearest neighbors for KNN |
-| `--knn_t` | 0.1 | KNN temperature parameter |
-| `--projector_dim` | 512 | Projector dimensionality |
-| `--predictor_dim` | 128 | Predictor dimensionality |
-| `--stop_grad` | True | Stop gradient backpropagation |
-| `--type_loss` | 'Cosine Similarity' | Loss function type |
-| `--symmetric` | True | Use symmetric loss |
+| Parameter | Default Value            | Description |
+|-----------|--------------------------|-------------|
+| `--key`           | '' | CometML Api Key          |
+| `--train_dir` | 'Dataset/Splitted/Train' | Training dataset directory |
+| `--val_dir` | 'Dataset/Splitted/Test'  | Validation dataset directory |
+| `--batch_size` | 96                       | Training batch size |
+| `--num_workers` | 12                       | Number of data loading workers |
+| `--base_lr` | 0.05                     | Base learning rate |
+| `--momentum` | 0.9                      | SGD momentum |
+| `--weight_decay` | 0.0001                   | Weight decay |
+| `--epochs` | 200                      | Number of training epochs |
+| `--val_step` | 1                        | Validation frequency (epochs) |
+| `--knn_k` | 200                      | Number of nearest neighbors for KNN |
+| `--knn_t` | 0.1                      | KNN temperature parameter |
+| `--projector_dim` | 512                      | Projector dimensionality |
+| `--predictor_dim` | 128                      | Predictor dimensionality |
+| `--stop_grad` | True                     | Stop gradient backpropagation |
+| `--type_loss` | 'Cosine Similarity'      | Loss function type |
+| `--symmetric` | True                     | Use symmetric loss |
 
 ### Available Loss Functions
 - "Cosine Similarity"
@@ -78,16 +79,17 @@ python3 LinearEvaluation.py [OPTIONS]
 
 ### Evaluation Parameters
 
-| Parameter | Default Value | Description |
-|-----------|---------------|-------------|
-| `--path` | 'Models/SimSiam/Symmetric Loss/model_200_96_Final.pth' | Pretrained model path |
-| `--batch_size` | 128 | Evaluation batch size |
-| `--epochs` | 100 | Evaluation epochs |
-| `--lr` | 0.3 | Learning rate |
-| `--momentum` | 0.9 | Optimizer momentum |
-| `--weight_decay` | 0.0 | Weight decay |
-| `--num_workers` | 12 | Data loading workers |
-| `--dataset` | 'MiniImageNet' | Evaluation dataset |
+| Parameter         | Default Value | Description              |
+|-------------------|---------------|--------------------------|
+| `--key`           | '' | CometML Api Key          |
+| `--path`          | 'Models/SimSiam/Symmetric Loss/model_200_96_Final.pth' | Pretrained model path    |
+| `--batch_size`    | 128 | Evaluation batch size    |
+| `--epochs`        | 100 | Evaluation epochs        |
+| `--lr`            | 0.3 | Learning rate            |
+| `--momentum`      | 0.9 | Optimizer momentum       |
+| `--weight_decay`  | 0.0 | Weight decay             |
+| `--num_workers`   | 12 | Data loading workers     |
+| `--dataset`       | 'MiniImageNet' | Evaluation dataset       |
 | `--projector_dim` | 512 | Projector dimensionality |
 | `--predictor_dim` | 128 | Predictor dimensionality |
 
@@ -117,21 +119,3 @@ All experimental results are tracked and available on Comet.ml:
 1. When using pretrained models, ensure `projector_dim` and `predictor_dim` match the training values
 2. Checkpoints are saved every 10 epochs
 3. Different loss function implementations are available in separate directories
-
-## 📝 Citation
-
-If you use this implementation in your research, please cite:
-
-```bibtex
-@misc{simsiam-implementation,
-  author = {Your Name},
-  title = {SimSiam Implementation and Evaluation},
-  year = {2024},
-  publisher = {GitHub},
-  url = {https://github.com/yourusername/simsiam-implementation}
-}
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
