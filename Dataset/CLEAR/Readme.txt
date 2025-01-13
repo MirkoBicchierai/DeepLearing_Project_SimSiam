@@ -1,1 +1,1 @@
-View the readme file in the main folder for the instruction
+View the readme file in the main folder for the instruction the remove this file
